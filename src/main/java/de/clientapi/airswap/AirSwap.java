@@ -116,8 +116,8 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
     }
 
     private void pushUpward() {
-        player.setVelocity(new Vector(0, 1, 0));
-        target.setVelocity(new Vector(0, 1, 0));
+        player.setVelocity(new Vector(0, 0.5, 0));
+        target.setVelocity(new Vector(0, 0.53, 0)); // feels better
 
         new BukkitRunnable() {
             @Override
@@ -127,10 +127,27 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
         }.runTaskLater(ProjectKorra.plugin, 8L);
     }
 
+    // funny ellipse
+    double elipfactor(double angle) {
+        return 1 * (1 - Math.cos(angle)); // something, something not sure what this does
+    }
+
+
+    // thanks to @turpo2098 for fixxing my horrendous math
+    private Vector rMatrix(double angle, Vector vector) {
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+        double x = vector.getX() * cos - vector.getZ() * sin;
+        double z = vector.getX() * sin + vector.getZ() * cos;
+        return new Vector(x, vector.getY(), z);
+    }
+
     private void swapPositions() {
         if (target != null && player.isOnline()) {
             Location playerLocation = player.getLocation();
             Location targetLocation = target.getLocation();
+
+
 
             new BukkitRunnable() {
                 private int ticks = 0;
@@ -144,34 +161,22 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
                 public void run() {
                     ticks++;
                     double progress = (double) ticks / duration;
-                    if (progress >= 1) {
-
+                    if (progress >= 1.4) {
                         cancel();
                         remove();
                     } else {
-
                         double angle = progress * Math.PI;
-                        double yOffset = 1; //
-                        double xOffset = Math.cos(angle) * playerStart.distance(playerEnd) / 2;
-                        double zOffset = Math.sin(angle) * playerStart.distance(playerEnd) / 2;
+                        double factor = elipfactor(angle);
+                        Vector U = targetStart.clone().subtract(playerStart);
+                        Vector C = playerStart.clone().add(U.clone().multiply(0.5));
 
-                        Vector playerCurrent = playerStart.clone().multiply(1 - progress).add(playerEnd.clone().multiply(progress));
-                        playerCurrent.setY(playerCurrent.getY() + yOffset);
-                        playerCurrent.setX(playerCurrent.getX() + xOffset);
-                        playerCurrent.setZ(playerCurrent.getZ() + zOffset);
-
-                        Vector targetCurrent = targetStart.clone().multiply(1 - progress).add(targetEnd.clone().multiply(progress));
-                        targetCurrent.setY(targetCurrent.getY() + yOffset);
-                        targetCurrent.setX(targetCurrent.getX() - xOffset);
-                        targetCurrent.setZ(targetCurrent.getZ() - zOffset);
-
-
-                        Vector playerVelocity = playerCurrent.subtract(player.getLocation().toVector()).multiply(0.1);
-                        Vector targetVelocity = targetCurrent.subtract(target.getLocation().toVector()).multiply(0.1);
+                        Vector playerCurrent = rMatrix(angle, U.clone().multiply(-1)).multiply(factor).add(C);
+                        Vector targetCurrent = rMatrix(angle, U).multiply(factor).add(C);
+                        Vector playerVelocity = playerCurrent.subtract(player.getLocation().toVector()).multiply(0.045);
+                        Vector targetVelocity = targetCurrent.subtract(target.getLocation().toVector()).multiply(0.045);
 
                         player.setVelocity(playerVelocity);
                         target.setVelocity(targetVelocity);
-
                         ParticleEffect.SWEEP_ATTACK.display(player.getLocation(), 1, 0.1, 0.1, 0.1, 0.01);
                         ParticleEffect.SWEEP_ATTACK.display(target.getLocation(), 1, 0.1, 0.1, 0.1, 0.01);
                     }
