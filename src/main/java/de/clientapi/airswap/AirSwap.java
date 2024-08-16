@@ -197,7 +197,7 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
 
     @Override
     public String getInstructions() {
-        return "AirShield (Shift) > AirBlast (Click) > AirSuction (Click)";
+        return "AirShield (Hold Sneak) > AirBlast (Left-Click) > AirSuction (Left-Click)";
     }
 
     @Override
