@@ -128,8 +128,8 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
     }
 
     // funny ellipse
-    double elipfactor(double angle) {
-        return 1 * (1 - Math.cos(angle)); // something, something not sure what this does
+    private double elipfactor(double factor,  double x){
+        return factor*(x*x-x)+1;
     }
 
 
@@ -161,19 +161,19 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
                 public void run() {
                     ticks++;
                     double progress = (double) ticks / duration;
-                    if (progress >= 1.4) {
+                    if (progress >= 1.2) { // feels better
                         cancel();
                         remove();
                     } else {
                         double angle = progress * Math.PI;
-                        double factor = elipfactor(angle);
+                        double factor = elipfactor(2, progress);
                         Vector U = targetStart.clone().subtract(playerStart);
                         Vector C = playerStart.clone().add(U.clone().multiply(0.5));
 
                         Vector playerCurrent = rMatrix(angle, U.clone().multiply(-1)).multiply(factor).add(C);
                         Vector targetCurrent = rMatrix(angle, U).multiply(factor).add(C);
-                        Vector playerVelocity = playerCurrent.subtract(player.getLocation().toVector()).multiply(0.045);
-                        Vector targetVelocity = targetCurrent.subtract(target.getLocation().toVector()).multiply(0.045);
+                        Vector playerVelocity = playerCurrent.subtract(player.getLocation().toVector()).multiply(0.08); // changes the speed of the swap
+                        Vector targetVelocity = targetCurrent.subtract(target.getLocation().toVector()).multiply(0.08); // changes the speed of the swap
 
                         player.setVelocity(playerVelocity);
                         target.setVelocity(targetVelocity);
