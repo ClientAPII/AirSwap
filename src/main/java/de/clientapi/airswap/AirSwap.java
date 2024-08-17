@@ -93,7 +93,7 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
             } else {
                 new BukkitRunnable() {
                     public void run() {
-                        player.setVelocity(new Vector(0, 1, 0));
+                        //player.setVelocity(new Vector(0, 1, 0));
                         ParticleEffect.CLOUD.display(player.getLocation(), 10, 0.5, 0.5, 0.5, 0.05);
                     }
                 }.runTaskLater(ProjectKorra.plugin, 5L);
@@ -105,15 +105,40 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
     }
 
     private LivingEntity getTargetEntity(Player player, double range) {
-        RayTraceResult result = player.getWorld().rayTraceEntities(
-                player.getEyeLocation(),
-                player.getEyeLocation().getDirection(),
-                range,
-                entity -> entity instanceof LivingEntity && entity != player
-        );
+        double tolerance = ConfigManager.getConfig().getDouble("ExtraAbilities.ClientAPI.Air.AirSwap.AccuracyTolerance", 5);
+        Location eyeLocation = player.getEyeLocation();
+        Vector direction = eyeLocation.getDirection().normalize();
 
-        return result != null && result.getHitEntity() instanceof LivingEntity ? (LivingEntity) result.getHitEntity() : null;
+        LivingEntity closestEntity = null;
+        double closestDistance = tolerance;
+
+
+        for (double i = 0; i <= range; i += 0.5) { // Check all 0.5 blocks for an entity
+            Location currentLocation = eyeLocation.clone().add(direction.clone().multiply(i));
+
+            // Check for entities within the tolerance radius at this step
+            for (LivingEntity entity : player.getWorld().getLivingEntities()) {
+                if (entity.equals(player)) continue; // Ignore the caster
+
+                double distance = entity.getLocation().distance(currentLocation);
+                if (distance <= tolerance) {
+                    double playerDistance = player.getLocation().distance(entity.getLocation());
+                    if (closestEntity == null || playerDistance < closestDistance) {
+                        closestEntity = entity;
+                        closestDistance = playerDistance;
+                    }
+                }
+            }
+
+            // If we found the entity just stop
+            if (closestEntity != null) {
+                break;
+            }
+        }
+
+        return closestEntity;
     }
+
 
     private void pushUpward() {
         player.setVelocity(new Vector(0, 0.5, 0));
@@ -209,8 +234,10 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
     public void load() {
         ConfigManager.getConfig().addDefault("ExtraAbilities.ClientAPI.Air.AirSwap.Cooldown", 7000);
         ConfigManager.getConfig().addDefault("ExtraAbilities.ClientAPI.Air.AirSwap.Range", 20);
+        ConfigManager.getConfig().addDefault("ExtraAbilities.ClientAPI.Air.AirSwap.AccuracyTolerance", 5); // Default tolerance of 5 blocks
         ConfigManager.defaultConfig.save();
     }
+
 
     @Override
     public void stop() {
