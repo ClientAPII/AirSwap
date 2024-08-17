@@ -1,6 +1,5 @@
 package de.clientapi.airswap;
 
-
 import com.projectkorra.projectkorra.ProjectKorra;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.ComboAbility;
@@ -14,7 +13,6 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
-import org.bukkit.util.RayTraceResult;
 
 import java.util.ArrayList;
 
@@ -22,7 +20,6 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
     private long cooldown;
     private Location origin;
     private Location targetLocation;
-    private Vector direction;
     private boolean swapped;
     private LivingEntity target;
     private double swapRange;
@@ -81,7 +78,6 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
             target = getTargetEntity(player, swapRange);
             if (target != null) {
                 targetLocation = target.getLocation();
-                direction = targetLocation.toVector().subtract(player.getLocation().toVector()).normalize().multiply(0.5);
                 ParticleEffect.CLOUD.display(player.getLocation(), 10, 0.5, 0.5, 0.5, 0.05);
                 ParticleEffect.CLOUD.display(targetLocation, 10, 0.5, 0.5, 0.5, 0.05);
 
@@ -95,7 +91,6 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
             } else {
                 new BukkitRunnable() {
                     public void run() {
-                        //player.setVelocity(new Vector(0, 1, 0));
                         ParticleEffect.CLOUD.display(player.getLocation(), 10, 0.5, 0.5, 0.5, 0.05);
                     }
                 }.runTaskLater(ProjectKorra.plugin, 5L);
@@ -113,7 +108,6 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
 
         LivingEntity closestEntity = null;
         double closestDistance = tolerance;
-
 
         for (double i = 0; i <= range; i += 0.5) { // Check all 0.5 blocks for an entity
             Location currentLocation = eyeLocation.clone().add(direction.clone().multiply(i));
@@ -141,10 +135,9 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
         return closestEntity;
     }
 
-
     private void pushUpward() {
         player.setVelocity(new Vector(0, 0.5, 0));
-        target.setVelocity(new Vector(0, 0.53, 0)); // feels better
+        target.setVelocity(new Vector(0, 0.53, 0)); // Small boost upward
 
         new BukkitRunnable() {
             @Override
@@ -154,13 +147,12 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
         }.runTaskLater(ProjectKorra.plugin, 8L);
     }
 
-    // funny ellipse
-    private double elipfactor(double factor,  double x){
-        return factor*(x*x-x)+1;
+    // Thanks @turpo2098 for fixxing my horrendous math
+    private double elipfactor(double factor, double x) {
+        return factor * (x * x - x) + 1;
     }
 
-
-    // thanks to @turpo2098 for fixxing my horrendous math
+    // Rotation matrix by @turpo2098
     private Vector rMatrix(double angle, Vector vector) {
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
@@ -174,11 +166,10 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
             Location playerLocation = player.getLocation();
             Location targetLocation = target.getLocation();
 
-
-
             new BukkitRunnable() {
                 private int ticks = 0;
                 private final int duration = 20;
+                private final int decelerationDuration = 16; // smooth out longer
                 private final Vector playerStart = playerLocation.toVector();
                 private final Vector targetStart = targetLocation.toVector();
                 private final Vector playerEnd = targetStart.clone();
@@ -189,8 +180,18 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
                     ticks++;
                     double progress = (double) ticks / duration;
                     if (progress >= 1.2) { // feels better
-                        cancel();
-                        remove();
+                        if (ticks >= duration + decelerationDuration) {
+                            cancel();
+                            player.setVelocity(new Vector(0, player.getVelocity().getY(), 0));
+                            target.setVelocity(new Vector(0, target.getVelocity().getY(), 0));
+                            remove();
+                        } else {
+                            double decelerationProgress = (double) (ticks - duration) / decelerationDuration;
+                            Vector playerVelocity = player.getVelocity().multiply(1 - decelerationProgress);
+                            Vector targetVelocity = target.getVelocity().multiply(1 - decelerationProgress);
+                            player.setVelocity(new Vector(playerVelocity.getX(), player.getVelocity().getY(), playerVelocity.getZ()));
+                            target.setVelocity(new Vector(targetVelocity.getX(), target.getVelocity().getY(), targetVelocity.getZ()));
+                        }
                     } else {
                         double angle = progress * Math.PI;
                         double factor = elipfactor(2, progress);
@@ -199,11 +200,12 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
 
                         Vector playerCurrent = rMatrix(angle, U.clone().multiply(-1)).multiply(factor).add(C);
                         Vector targetCurrent = rMatrix(angle, U).multiply(factor).add(C);
-                        Vector playerVelocity = playerCurrent.subtract(player.getLocation().toVector()).multiply(swapSpeedMultiplier); // changes the speed of the swap
-                        Vector targetVelocity = targetCurrent.subtract(target.getLocation().toVector()).multiply(swapSpeedMultiplier); // changes the speed of the swap
+                        Vector playerVelocity = playerCurrent.subtract(player.getLocation().toVector()).multiply(swapSpeedMultiplier);
+                        Vector targetVelocity = targetCurrent.subtract(target.getLocation().toVector()).multiply(swapSpeedMultiplier);
 
                         player.setVelocity(playerVelocity);
                         target.setVelocity(targetVelocity);
+
                         ParticleEffect.SWEEP_ATTACK.display(player.getLocation(), 1, 0.1, 0.1, 0.1, 0.01);
                         ParticleEffect.SWEEP_ATTACK.display(target.getLocation(), 1, 0.1, 0.1, 0.1, 0.01);
                     }
@@ -219,17 +221,17 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
 
     @Override
     public String getDescription() {
-        return "AirSwap allows the bender to swap positions with a target";
+        return "AirSwap allows the bender to swap positions with a target.";
     }
 
     @Override
     public String getInstructions() {
-        return "AirShield (Hold Sneak) > AirBlast (Left-Click) > AirSuction (Release Sneak)";
+        return "Hold AirShield (Sneak), Click AirBlast (Left-Click), Release Sneak to activate AirSuction.";
     }
 
     @Override
     public String getVersion() {
-        return "0.4";
+        return "0.6";
     }
 
     @Override
@@ -240,7 +242,6 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
         ConfigManager.getConfig().addDefault("ExtraAbilities.ClientAPI.Air.AirSwap.SwapSpeedMultiplier", 0.08);
         ConfigManager.defaultConfig.save();
     }
-
 
     @Override
     public void stop() {
@@ -257,7 +258,7 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
         ArrayList<ComboManager.AbilityInformation> combo = new ArrayList<>();
         combo.add(new ComboManager.AbilityInformation("AirShield", ClickType.SHIFT_DOWN));
         combo.add(new ComboManager.AbilityInformation("AirBlast", ClickType.LEFT_CLICK));
-        combo.add(new ComboManager.AbilityInformation("AirSuction", ClickType.SHIFT_UP));
+        combo.add(new ComboManager.AbilityInformation("AirSuction", ClickType.SHIFT_UP)); // Tap Sneak for AirSuction
         return combo;
     }
 }
