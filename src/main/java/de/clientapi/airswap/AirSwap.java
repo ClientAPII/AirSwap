@@ -26,6 +26,7 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
     private boolean swapped;
     private LivingEntity target;
     private double swapRange;
+    private double swapSpeedMultiplier;
 
     public AirSwap(Player player) {
         super(player);
@@ -37,6 +38,7 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
     }
 
     private void setFields() {
+        this.swapSpeedMultiplier = ConfigManager.getConfig().getDouble("ExtraAbilities.ClientAPI.Air.AirSwap.SwapSpeedMultiplier", 0.08);
         this.cooldown = ConfigManager.getConfig().getLong("ExtraAbilities.ClientAPI.Air.AirSwap.Cooldown", 7000);
         this.swapRange = ConfigManager.getConfig().getDouble("ExtraAbilities.ClientAPI.Air.AirSwap.Range", 15);
         this.origin = player.getLocation();
@@ -197,8 +199,8 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
 
                         Vector playerCurrent = rMatrix(angle, U.clone().multiply(-1)).multiply(factor).add(C);
                         Vector targetCurrent = rMatrix(angle, U).multiply(factor).add(C);
-                        Vector playerVelocity = playerCurrent.subtract(player.getLocation().toVector()).multiply(0.08); // changes the speed of the swap
-                        Vector targetVelocity = targetCurrent.subtract(target.getLocation().toVector()).multiply(0.08); // changes the speed of the swap
+                        Vector playerVelocity = playerCurrent.subtract(player.getLocation().toVector()).multiply(swapSpeedMultiplier); // changes the speed of the swap
+                        Vector targetVelocity = targetCurrent.subtract(target.getLocation().toVector()).multiply(swapSpeedMultiplier); // changes the speed of the swap
 
                         player.setVelocity(playerVelocity);
                         target.setVelocity(targetVelocity);
@@ -222,12 +224,12 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
 
     @Override
     public String getInstructions() {
-        return "AirShield (Hold Sneak) > AirBlast (Left-Click) > AirSuction (Left-Click)";
+        return "AirShield (Hold Sneak) > AirBlast (Left-Click) > AirSuction (Release Sneak)";
     }
 
     @Override
     public String getVersion() {
-        return "0.2";
+        return "0.4";
     }
 
     @Override
@@ -235,6 +237,7 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
         ConfigManager.getConfig().addDefault("ExtraAbilities.ClientAPI.Air.AirSwap.Cooldown", 7000);
         ConfigManager.getConfig().addDefault("ExtraAbilities.ClientAPI.Air.AirSwap.Range", 20);
         ConfigManager.getConfig().addDefault("ExtraAbilities.ClientAPI.Air.AirSwap.AccuracyTolerance", 5); // Default tolerance of 5 blocks
+        ConfigManager.getConfig().addDefault("ExtraAbilities.ClientAPI.Air.AirSwap.SwapSpeedMultiplier", 0.08);
         ConfigManager.defaultConfig.save();
     }
 
@@ -254,7 +257,7 @@ public class AirSwap extends AirAbility implements ComboAbility, AddonAbility {
         ArrayList<ComboManager.AbilityInformation> combo = new ArrayList<>();
         combo.add(new ComboManager.AbilityInformation("AirShield", ClickType.SHIFT_DOWN));
         combo.add(new ComboManager.AbilityInformation("AirBlast", ClickType.LEFT_CLICK));
-        combo.add(new ComboManager.AbilityInformation("AirSuction", ClickType.LEFT_CLICK));
+        combo.add(new ComboManager.AbilityInformation("AirSuction", ClickType.SHIFT_UP));
         return combo;
     }
 }
